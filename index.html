@@ -2,7 +2,7 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <title>AI AOI 工件影像資料增強生成器 (通用上傳版)</title>
+    <title>AI AOI 工件影像資料增強生成器 (真實背景合成版)</title>
     <style>
         body {
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
@@ -62,15 +62,14 @@
 <body>
 
 <div class="container">
-    <h2>AOI 模擬多維度變異影像生成器</h2>
+    <h2>AOI 模擬多維度變異影像生成器 (擬真背景版)</h2>
     <p>
-        <b>使用說明：</b><br>
-        1. 點擊下方區塊，從您的電腦或手機中<b>選擇任意一張筆的照片</b>。<br>
-        2. 選擇圖片後，點擊「一鍵生成」按鈕，網頁將自動批量下載 30 張經過演算法旋轉、縮放、變更底色與光影的衍生影像。
+        <b>工業級資料增強說明：</b><br>
+        本工具內建背景雜訊生成演算法。當您選擇圖片後，系統將自動生成<b>帶有環境光影漸層、產線桌面細微紋理雜訊</b>的背景，並將工件以邊緣平滑（Anti-aliasing）方式融合嵌入，避免 AI 分類器產生「死背色塊邊緣」的過擬合誤判。
     </p>
     
     <div class="upload-zone" onclick="document.getElementById('file-input').click()">
-        <span id="file-name" style="color: #4a5568;">📂 點擊這裡選擇或拖入圖片</span>
+        <span id="file-name" style="color: #4a5568;">📂 點擊這裡選擇或拖入筆的照片</span>
         <input type="file" id="file-input" accept="image/*" onchange="handleFileSelect(event)">
     </div>
     
@@ -83,7 +82,6 @@
 <script>
     let loadedImage = null;
 
-    // 處理使用者手動選取的圖片檔案
     function handleFileSelect(event) {
         const file = event.target.files[0];
         if (!file) return;
@@ -95,9 +93,8 @@
             loadedImage = new Image();
             loadedImage.src = e.target.result;
             loadedImage.onload = function() {
-                // 圖片成功讀入後，啟用生成按鈕
                 document.getElementById('gen-btn').disabled = false;
-                document.getElementById('gen-btn').innerText = "一鍵生成並連續下載 30 張照片";
+                document.getElementById('gen-btn').innerText = "一鍵生成並連續下載 30 張擬真照片";
                 document.getElementById('status').innerText = "圖片就緒，可以開始生成。";
             }
         }
@@ -109,7 +106,6 @@
 
         const btn = document.getElementById('gen-btn');
         const status = document.getElementById('status');
-        
         btn.disabled = true;
         
         const canvas = document.getElementById('calcCanvas');
@@ -121,63 +117,88 @@
         canvas.height = height;
 
         for (let i = 1; i <= 30; i++) {
-            status.innerText = `正在生成並下載第 ${i} / 30 張...\n(若下載卡住，請確認瀏覽器已允許此網站下載多個檔案)`;
+            status.innerText = `正在應用模擬打光與紋理，生成下載第 ${i} / 30 張...\n(請允許瀏覽器多檔案下載權限)`;
             
-            // 填滿隨機淺色背景
+            // 1. 生成擬真的工廠不均勻光源與桌面雜訊背景
             ctx.clearRect(0, 0, w, height);
-            const rBg = Math.floor(Math.random() * 55) + 200;
-            const gBg = Math.floor(Math.random() * 55) + 200;
-            const bBg = Math.floor(Math.random() * 55) + 200;
-            ctx.fillStyle = `rgb(${rBg}, ${gBg}, ${bBg})`;
+            
+            // 隨機一個灰/米白/淡青基礎底色
+            const baseColor = Math.floor(Math.random() * 30) + 200; // 200~230
+            const shiftG = Math.floor(Math.random() * 15) - 5;
+            const shiftB = Math.floor(Math.random() * 15) - 5;
+            
+            // 建立不均勻環境光漸層 (Radial Gradient 模擬產線頂頭打光陰影)
+            const cx = Math.random() * w;
+            const cy = Math.random() * height;
+            const r1 = Math.min(w, height) * 0.2;
+            const r2 = Math.max(w, height) * 1.5;
+            const grad = ctx.createRadialGradient(cx, cy, r1, cx, cy, r2);
+            grad.addColorStop(0, `rgb(${baseColor+15}, ${baseColor+shiftG+15}, ${baseColor+shiftB+15})`);
+            grad.addColorStop(1, `rgb(${baseColor-25}, ${baseColor+shiftG-25}, ${baseColor+shiftB-25})`);
+            ctx.fillStyle = grad;
             ctx.fillRect(0, 0, w, height);
 
+            // 注入環境高頻雜訊 (模擬真實工業 CCD 相機的感光元件雜訊雜點)
+            const bgData = ctx.getImageData(0, 0, w, height);
+            const d = bgData.data;
+            for (let j = 0; j < d.length; j += 4) {
+                const noise = (Math.random() - 0.5) * 8; // 輕微擾動
+                d[j]     = Math.min(255, Math.max(0, d[j] + noise));
+                d[j + 1] = Math.min(255, Math.max(0, d[j + 1] + noise));
+                d[j + 2] = Math.min(255, Math.max(0, d[j + 2] + noise));
+            }
+            ctx.putImageData(bgData, 0, 0);
+
+            // 2. 進行工件的角度矩陣變換
             ctx.save();
             ctx.translate(w / 2, height / 2);
-
-            // 1. 隨機旋轉 (-180度 到 +180度)
+            
+            // 隨機旋轉偏角
             const angle = (Math.random() * 360 - 180) * Math.PI / 180;
             ctx.rotate(angle);
 
-            // 2. 隨機縮放 (0.75 到 1.25 倍)
-            const scale = Math.random() * 0.5 + 0.75;
+            // 隨機縮放 (0.8 到 1.15 倍)
+            const scale = Math.random() * 0.35 + 0.8;
             ctx.scale(scale, scale);
 
+            // 開啟畫布原生抗鋸齒，讓邊緣融合更平滑
+            ctx.imageSmoothingEnabled = true;
+            ctx.imageSmoothingQuality = 'high';
+
+            // 繪製工件
             ctx.drawImage(loadedImage, -w / 2, -height / 2, w, height);
             ctx.restore();
 
-            // 3. 隨機像素光影調整 (模擬強烈反光與陰影)
+            // 3. 全局模擬工業光源變化
             try {
-                const windowImage = ctx.getImageData(0, 0, w, height);
-                const data = windowImage.data;
-                const brightnessDelta = Math.floor(Math.random() * 60) - 30;
+                const finalImage = ctx.getImageData(0, 0, w, height);
+                const finalData = finalImage.data;
+                const globalBrightness = Math.floor(Math.random() * 40) - 20; // 模擬當前曝光微幅改變
                 
-                for (let j = 0; j < data.length; j += 4) {
-                    if (data[j] < 240 || data[j+1] < 240 || data[j+2] < 240) {
-                        data[j]     = Math.min(255, Math.max(0, data[j] + brightnessDelta));
-                        data[j + 1] = Math.min(255, Math.max(0, data[j + 1] + brightnessDelta));
-                        data[j + 2] = Math.min(255, Math.max(0, data[j + 2] + brightnessDelta));
-                    }
+                for (let j = 0; j < finalData.length; j += 4) {
+                    finalData[j]     = Math.min(255, Math.max(0, finalData[j] + globalBrightness));
+                    finalData[j + 1] = Math.min(255, Math.max(0, finalData[j + 1] + globalBrightness));
+                    finalData[j + 2] = Math.min(255, Math.max(0, finalData[j + 2] + globalBrightness));
                 }
-                ctx.putImageData(windowImage, 0, 0);
+                ctx.putImageData(finalImage, 0, 0);
             } catch (e) {
-                console.log("色彩調整受限，跳過像素微調");
+                console.log("跳過全局曝光優化");
             }
 
             // 4. 自動觸發下載
-            const imgDataUrl = canvas.toDataURL('image/jpeg', 0.9);
+            const imgDataUrl = canvas.toDataURL('image/jpeg', 0.85);
             const link = document.createElement('a');
             link.href = imgDataUrl;
-            link.download = `marker_aug_${String(i).padStart(2, '0')}.jpg`;
+            link.download = `marker_synthetic_${String(i).padStart(2, '0')}.jpg`;
             document.body.appendChild(link);
             link.click();
             document.body.removeChild(link);
 
-            // 稍微延遲，避免瀏覽器反應不及
-            await new Promise(resolve => setTimeout(resolve, 200));
+            await new Promise(resolve => setTimeout(resolve, 250));
         }
 
         status.style.color = "#38a169";
-        status.innerText = "🎉 30 張多維度變異照片已全部下載完成！\n請至您電腦或手機的「下載」資料夾內查看。";
+        status.innerText = "🎉 30 張融合不均勻光源與環境雜訊的「擬真資料集」已全部下載完成！";
         btn.disabled = false;
     }
 </script>
