@@ -2,203 +2,378 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <title>AI AOI 工件影像資料增強生成器 (真實背景合成版)</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI AOI 工件影像資料增強生成器｜專業純白／純灰背景版</title>
     <style>
+        :root {
+            --primary: #2563eb;
+            --primary-dark: #1d4ed8;
+            --ink: #1f2937;
+            --muted: #6b7280;
+            --line: #d1d5db;
+            --panel: #ffffff;
+            --soft: #f3f4f6;
+            --success: #16a34a;
+        }
+
+        * { box-sizing: border-box; }
+
         body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
-            background-color: #f5f7fa;
-            color: #333;
-            padding: 30px;
+            margin: 0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Noto Sans TC", Arial, sans-serif;
+            background: linear-gradient(180deg, #f8fafc 0%, #eef2f7 100%);
+            color: var(--ink);
+            min-height: 100vh;
+            padding: 32px 16px;
             display: flex;
             flex-direction: column;
             align-items: center;
         }
+
         .container {
-            max-width: 600px;
-            width: 100%;
-            background: white;
-            padding: 25px;
-            border-radius: 12px;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.05);
-            text-align: center;
-            box-sizing: border-box;
+            width: min(760px, 100%);
+            background: var(--panel);
+            border: 1px solid rgba(148, 163, 184, 0.35);
+            border-radius: 18px;
+            box-shadow: 0 18px 45px rgba(15, 23, 42, 0.08);
+            overflow: hidden;
         }
-        h2 { color: #1a365d; margin-top: 0; }
-        p { color: #4a5568; font-size: 14px; line-height: 1.6; text-align: left; }
+
+        .header {
+            padding: 26px 28px 18px;
+            border-bottom: 1px solid #e5e7eb;
+            background: #ffffff;
+        }
+
+        h2 {
+            margin: 0 0 10px;
+            color: #0f172a;
+            font-size: 24px;
+            letter-spacing: 0.02em;
+        }
+
+        .subtitle {
+            margin: 0;
+            color: var(--muted);
+            font-size: 15px;
+            line-height: 1.7;
+            text-align: left;
+        }
+
+        .content { padding: 24px 28px 28px; }
+
         .upload-zone {
-            border: 2px dashed #cbd5e0;
-            padding: 20px;
-            border-radius: 8px;
-            background-color: #f7fafc;
-            margin: 20px 0;
+            border: 2px dashed #cbd5e1;
+            padding: 22px;
+            border-radius: 14px;
+            background: #f8fafc;
+            margin: 0 0 20px;
             cursor: pointer;
+            text-align: center;
+            transition: 0.2s ease;
         }
-        .upload-zone:hover { border-color: #4299e1; background-color: #ebf8ff; }
+
+        .upload-zone:hover,
+        .upload-zone.dragover {
+            border-color: var(--primary);
+            background: #eff6ff;
+        }
+
         #file-input { display: none; }
-        .btn {
-            background-color: #3182ce;
-            color: white;
-            border: none;
-            padding: 12px 30px;
-            font-size: 16px;
-            font-weight: bold;
-            border-radius: 6px;
+
+        #file-name {
+            color: #475569;
+            font-weight: 600;
+        }
+
+        .settings {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+            margin-bottom: 20px;
+        }
+
+        .setting-card {
+            border: 1px solid #e5e7eb;
+            border-radius: 14px;
+            padding: 16px;
+            background: #ffffff;
+            text-align: left;
+        }
+
+        .setting-card h3 {
+            margin: 0 0 12px;
+            font-size: 15px;
+            color: #111827;
+        }
+
+        label.option {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin: 9px 0;
+            color: #374151;
+            font-size: 14px;
             cursor: pointer;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-            transition: background 0.2s;
+        }
+
+        .tip {
+            margin: 12px 0 20px;
+            padding: 12px 14px;
+            border-radius: 12px;
+            background: #f0fdf4;
+            color: #166534;
+            font-size: 14px;
+            line-height: 1.6;
+            text-align: left;
+        }
+
+        .btn {
             width: 100%;
+            border: none;
+            border-radius: 12px;
+            background: var(--primary);
+            color: white;
+            padding: 14px 22px;
+            font-size: 16px;
+            font-weight: 700;
+            cursor: pointer;
+            box-shadow: 0 8px 18px rgba(37, 99, 235, 0.18);
+            transition: 0.2s ease;
         }
-        .btn:hover { background-color: #2b6cb0; }
-        .btn:disabled { background-color: #cbd5e0; cursor: not-allowed; }
+
+        .btn:hover { background: var(--primary-dark); }
+        .btn:disabled {
+            background: #cbd5e1;
+            box-shadow: none;
+            cursor: not-allowed;
+        }
+
         #status {
-            margin-top: 15px;
-            font-weight: bold;
-            color: #2b6cb0;
+            margin-top: 16px;
+            color: var(--primary-dark);
+            font-weight: 700;
+            line-height: 1.6;
             white-space: pre-line;
+            text-align: center;
         }
-        canvas { display: none; }
+
+        .preview-wrap {
+            margin-top: 20px;
+            display: none;
+            text-align: left;
+        }
+
+        .preview-wrap h3 {
+            margin: 0 0 10px;
+            font-size: 15px;
+            color: #111827;
+        }
+
+        #previewCanvas {
+            width: 100%;
+            border: 1px solid #e5e7eb;
+            border-radius: 12px;
+            background: #fff;
+            display: block;
+        }
+
+        #calcCanvas { display: none; }
+
+        @media (max-width: 680px) {
+            .settings { grid-template-columns: 1fr; }
+            .header, .content { padding-left: 18px; padding-right: 18px; }
+        }
     </style>
 </head>
 <body>
 
 <div class="container">
-    <h2>AOI 模擬多維度變異影像生成器 (擬真背景版)</h2>
-    <p>
-        <b>工業級資料增強說明：</b><br>
-        本工具內建背景雜訊生成演算法。當您選擇圖片後，系統將自動生成<b>帶有環境光影漸層、產線桌面細微紋理雜訊</b>的背景，並將工件以邊緣平滑（Anti-aliasing）方式融合嵌入，避免 AI 分類器產生「死背色塊邊緣」的過擬合誤判。
-    </p>
-    
-    <div class="upload-zone" onclick="document.getElementById('file-input').click()">
-        <span id="file-name" style="color: #4a5568;">📂 點擊這裡選擇或拖入筆的照片</span>
-        <input type="file" id="file-input" accept="image/*" onchange="handleFileSelect(event)">
+    <div class="header">
+        <h2>AOI 工件影像資料增強生成器</h2>
+        <p class="subtitle">
+            本版已移除原本的隨機漸層、桌面紋理雜訊與曝光漂移。輸出背景固定為專業純白或中性灰，適合教材展示、AOI 樣本整理與影像辨識前處理練習。
+        </p>
     </div>
-    
-    <button id="gen-btn" class="btn" onclick="generateImages()" disabled>請先選擇圖片</button>
-    <div id="status"></div>
+
+    <div class="content">
+        <div class="upload-zone" id="upload-zone" onclick="document.getElementById('file-input').click()">
+            <span id="file-name">📂 點擊這裡選擇或拖入筆的照片</span>
+            <input type="file" id="file-input" accept="image/*" onchange="handleFileSelect(event)">
+        </div>
+
+        <div class="settings">
+            <div class="setting-card">
+                <h3>背景模式</h3>
+                <label class="option"><input type="radio" name="bg-mode" value="white" checked> 純白背景 #FFFFFF</label>
+                <label class="option"><input type="radio" name="bg-mode" value="gray"> 中性灰背景 #E5E7EB</label>
+                <label class="option"><input type="radio" name="bg-mode" value="alternate"> 前 15 張白底，後 15 張灰底</label>
+            </div>
+
+            <div class="setting-card">
+                <h3>輸出格式</h3>
+                <label class="option"><input type="radio" name="output-format" value="png" checked> PNG：背景最乾淨</label>
+                <label class="option"><input type="radio" name="output-format" value="jpg"> JPG：檔案較小</label>
+            </div>
+        </div>
+
+        <div class="tip">
+            ✅ 建議正式教學或 AOI 樣本使用 PNG + 純白背景。若要訓練模型辨識不同底色，可選擇「前 15 張白底，後 15 張灰底」。
+        </div>
+
+        <button id="gen-btn" class="btn" onclick="generateImages()" disabled>請先選擇圖片</button>
+        <div id="status"></div>
+
+        <div class="preview-wrap" id="preview-wrap">
+            <h3>預覽</h3>
+            <canvas id="previewCanvas"></canvas>
+        </div>
+    </div>
 </div>
 
 <canvas id="calcCanvas"></canvas>
 
 <script>
     let loadedImage = null;
+    const OUTPUT_COUNT = 30;
+
+    const uploadZone = document.getElementById('upload-zone');
+    const fileInput = document.getElementById('file-input');
+
+    uploadZone.addEventListener('dragover', function(event) {
+        event.preventDefault();
+        uploadZone.classList.add('dragover');
+    });
+
+    uploadZone.addEventListener('dragleave', function() {
+        uploadZone.classList.remove('dragover');
+    });
+
+    uploadZone.addEventListener('drop', function(event) {
+        event.preventDefault();
+        uploadZone.classList.remove('dragover');
+        const file = event.dataTransfer.files[0];
+        if (file) loadImageFile(file);
+    });
 
     function handleFileSelect(event) {
         const file = event.target.files[0];
         if (!file) return;
+        loadImageFile(file);
+    }
+
+    function loadImageFile(file) {
+        if (!file.type.startsWith('image/')) {
+            document.getElementById('status').innerText = '請選擇圖片檔案。';
+            return;
+        }
 
         document.getElementById('file-name').innerText = `📄 已選取：${file.name}`;
-        
+        document.getElementById('status').style.color = '#1d4ed8';
+        document.getElementById('status').innerText = '正在讀取圖片...';
+
         const reader = new FileReader();
         reader.onload = function(e) {
             loadedImage = new Image();
-            loadedImage.src = e.target.result;
             loadedImage.onload = function() {
                 document.getElementById('gen-btn').disabled = false;
-                document.getElementById('gen-btn').innerText = "一鍵生成並連續下載 30 張擬真照片";
-                document.getElementById('status').innerText = "圖片就緒，可以開始生成。";
-            }
-        }
+                document.getElementById('gen-btn').innerText = `一鍵生成並下載 ${OUTPUT_COUNT} 張乾淨背景影像`;
+                document.getElementById('status').innerText = '圖片就緒，可以開始生成。';
+                renderPreview();
+            };
+            loadedImage.src = e.target.result;
+        };
         reader.readAsDataURL(file);
     }
+
+    function selectedBackgroundColor(index) {
+        const bgMode = document.querySelector('input[name="bg-mode"]:checked').value;
+        if (bgMode === 'gray') return '#e5e7eb';
+        if (bgMode === 'alternate') return index <= OUTPUT_COUNT / 2 ? '#ffffff' : '#e5e7eb';
+        return '#ffffff';
+    }
+
+    function selectedOutputFormat() {
+        return document.querySelector('input[name="output-format"]:checked').value;
+    }
+
+    function drawSyntheticImage(ctx, canvas, index) {
+        const w = loadedImage.width;
+        const h = loadedImage.height;
+        canvas.width = w;
+        canvas.height = h;
+
+        ctx.clearRect(0, 0, w, h);
+        ctx.fillStyle = selectedBackgroundColor(index);
+        ctx.fillRect(0, 0, w, h);
+
+        ctx.save();
+        ctx.translate(w / 2, h / 2);
+
+        const angle = (Math.random() * 360 - 180) * Math.PI / 180;
+        const scale = Math.random() * 0.35 + 0.8;
+
+        ctx.rotate(angle);
+        ctx.scale(scale, scale);
+        ctx.imageSmoothingEnabled = true;
+        ctx.imageSmoothingQuality = 'high';
+        ctx.drawImage(loadedImage, -w / 2, -h / 2, w, h);
+        ctx.restore();
+    }
+
+    function renderPreview() {
+        if (!loadedImage) return;
+        const previewWrap = document.getElementById('preview-wrap');
+        const previewCanvas = document.getElementById('previewCanvas');
+        const previewCtx = previewCanvas.getContext('2d');
+        previewWrap.style.display = 'block';
+        drawSyntheticImage(previewCtx, previewCanvas, 1);
+    }
+
+    document.querySelectorAll('input[name="bg-mode"], input[name="output-format"]').forEach(function(input) {
+        input.addEventListener('change', renderPreview);
+    });
 
     async function generateImages() {
         if (!loadedImage) return;
 
         const btn = document.getElementById('gen-btn');
         const status = document.getElementById('status');
-        btn.disabled = true;
-        
         const canvas = document.getElementById('calcCanvas');
         const ctx = canvas.getContext('2d');
-        
-        const w = loadedImage.width;
-        const height = loadedImage.height;
-        canvas.width = w;
-        canvas.height = height;
+        const format = selectedOutputFormat();
 
-        for (let i = 1; i <= 30; i++) {
-            status.innerText = `正在應用模擬打光與紋理，生成下載第 ${i} / 30 張...\n(請允許瀏覽器多檔案下載權限)`;
-            
-            // 1. 生成擬真的工廠不均勻光源與桌面雜訊背景
-            ctx.clearRect(0, 0, w, height);
-            
-            // 隨機一個灰/米白/淡青基礎底色
-            const baseColor = Math.floor(Math.random() * 30) + 200; // 200~230
-            const shiftG = Math.floor(Math.random() * 15) - 5;
-            const shiftB = Math.floor(Math.random() * 15) - 5;
-            
-            // 建立不均勻環境光漸層 (Radial Gradient 模擬產線頂頭打光陰影)
-            const cx = Math.random() * w;
-            const cy = Math.random() * height;
-            const r1 = Math.min(w, height) * 0.2;
-            const r2 = Math.max(w, height) * 1.5;
-            const grad = ctx.createRadialGradient(cx, cy, r1, cx, cy, r2);
-            grad.addColorStop(0, `rgb(${baseColor+15}, ${baseColor+shiftG+15}, ${baseColor+shiftB+15})`);
-            grad.addColorStop(1, `rgb(${baseColor-25}, ${baseColor+shiftG-25}, ${baseColor+shiftB-25})`);
-            ctx.fillStyle = grad;
-            ctx.fillRect(0, 0, w, height);
+        btn.disabled = true;
+        status.style.color = '#1d4ed8';
 
-            // 注入環境高頻雜訊 (模擬真實工業 CCD 相機的感光元件雜訊雜點)
-            const bgData = ctx.getImageData(0, 0, w, height);
-            const d = bgData.data;
-            for (let j = 0; j < d.length; j += 4) {
-                const noise = (Math.random() - 0.5) * 8; // 輕微擾動
-                d[j]     = Math.min(255, Math.max(0, d[j] + noise));
-                d[j + 1] = Math.min(255, Math.max(0, d[j + 1] + noise));
-                d[j + 2] = Math.min(255, Math.max(0, d[j + 2] + noise));
-            }
-            ctx.putImageData(bgData, 0, 0);
+        for (let i = 1; i <= OUTPUT_COUNT; i++) {
+            status.innerText = `正在生成第 ${i} / ${OUTPUT_COUNT} 張乾淨背景影像...\n請允許瀏覽器多檔案下載權限。`;
 
-            // 2. 進行工件的角度矩陣變換
-            ctx.save();
-            ctx.translate(w / 2, height / 2);
-            
-            // 隨機旋轉偏角
-            const angle = (Math.random() * 360 - 180) * Math.PI / 180;
-            ctx.rotate(angle);
+            drawSyntheticImage(ctx, canvas, i);
 
-            // 隨機縮放 (0.8 到 1.15 倍)
-            const scale = Math.random() * 0.35 + 0.8;
-            ctx.scale(scale, scale);
-
-            // 開啟畫布原生抗鋸齒，讓邊緣融合更平滑
-            ctx.imageSmoothingEnabled = true;
-            ctx.imageSmoothingQuality = 'high';
-
-            // 繪製工件
-            ctx.drawImage(loadedImage, -w / 2, -height / 2, w, height);
-            ctx.restore();
-
-            // 3. 全局模擬工業光源變化
-            try {
-                const finalImage = ctx.getImageData(0, 0, w, height);
-                const finalData = finalImage.data;
-                const globalBrightness = Math.floor(Math.random() * 40) - 20; // 模擬當前曝光微幅改變
-                
-                for (let j = 0; j < finalData.length; j += 4) {
-                    finalData[j]     = Math.min(255, Math.max(0, finalData[j] + globalBrightness));
-                    finalData[j + 1] = Math.min(255, Math.max(0, finalData[j + 1] + globalBrightness));
-                    finalData[j + 2] = Math.min(255, Math.max(0, finalData[j + 2] + globalBrightness));
-                }
-                ctx.putImageData(finalImage, 0, 0);
-            } catch (e) {
-                console.log("跳過全局曝光優化");
+            let imgDataUrl;
+            let ext;
+            if (format === 'jpg') {
+                imgDataUrl = canvas.toDataURL('image/jpeg', 0.95);
+                ext = 'jpg';
+            } else {
+                imgDataUrl = canvas.toDataURL('image/png');
+                ext = 'png';
             }
 
-            // 4. 自動觸發下載
-            const imgDataUrl = canvas.toDataURL('image/jpeg', 0.85);
+            const bgLabel = selectedBackgroundColor(i) === '#ffffff' ? 'white' : 'gray';
             const link = document.createElement('a');
             link.href = imgDataUrl;
-            link.download = `marker_synthetic_${String(i).padStart(2, '0')}.jpg`;
+            link.download = `marker_clean_${bgLabel}_${String(i).padStart(2, '0')}.${ext}`;
             document.body.appendChild(link);
             link.click();
             document.body.removeChild(link);
 
-            await new Promise(resolve => setTimeout(resolve, 250));
+            await new Promise(resolve => setTimeout(resolve, 220));
         }
 
-        status.style.color = "#38a169";
-        status.innerText = "🎉 30 張融合不均勻光源與環境雜訊的「擬真資料集」已全部下載完成！";
+        status.style.color = '#16a34a';
+        status.innerText = `🎉 ${OUTPUT_COUNT} 張乾淨背景影像已全部下載完成！`;
         btn.disabled = false;
     }
 </script>
