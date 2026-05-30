@@ -2,7 +2,7 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <title>AI AOI 工件影像資料增強生成器 (純原生免套件版)</title>
+    <title>AI AOI 工件影像資料增強生成器 (通用上傳版)</title>
     <style>
         body {
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
@@ -15,14 +15,26 @@
         }
         .container {
             max-width: 600px;
+            width: 100%;
             background: white;
             padding: 25px;
             border-radius: 12px;
             box-shadow: 0 4px 15px rgba(0,0,0,0.05);
             text-align: center;
+            box-sizing: border-box;
         }
         h2 { color: #1a365d; margin-top: 0; }
-        p { color: #4a5568; font-size: 14px; line-height: 1.6; }
+        p { color: #4a5568; font-size: 14px; line-height: 1.6; text-align: left; }
+        .upload-zone {
+            border: 2px dashed #cbd5e0;
+            padding: 20px;
+            border-radius: 8px;
+            background-color: #f7fafc;
+            margin: 20px 0;
+            cursor: pointer;
+        }
+        .upload-zone:hover { border-color: #4299e1; background-color: #ebf8ff; }
+        #file-input { display: none; }
         .btn {
             background-color: #3182ce;
             color: white;
@@ -34,7 +46,7 @@
             cursor: pointer;
             box-shadow: 0 2px 4px rgba(0,0,0,0.1);
             transition: background 0.2s;
-            margin-top: 15px;
+            width: 100%;
         }
         .btn:hover { background-color: #2b6cb0; }
         .btn:disabled { background-color: #cbd5e0; cursor: not-allowed; }
@@ -50,108 +62,123 @@
 <body>
 
 <div class="container">
-    <h2>AOI 模擬多維度變異影像生成器 (純原生版)</h2>
+    <h2>AOI 模擬多維度變異影像生成器</h2>
     <p>
         <b>使用說明：</b><br>
-        1. 請確認同資料夾內有 <b>marker.jpg</b>。<br>
-        2. 點擊下方按鈕，網頁將自動批量下載 30 張衍生照片。<br>
-        <span style="color: #e53e3e;">⚠️ 註：第一次執行時，瀏覽器若彈出「允許此網站下載多個檔案」，請務必點選<b>「允許」</b>！</span>
+        1. 點擊下方區塊，從您的電腦或手機中<b>選擇任意一張筆的照片</b>。<br>
+        2. 選擇圖片後，點擊「一鍵生成」按鈕，網頁將自動批量下載 30 張經過演算法旋轉、縮放、變更底色與光影的衍生影像。
     </p>
     
-    <button id="gen-btn" class="btn" onclick="generateImages()">一鍵生成並連續下載 30 張照片</button>
+    <div class="upload-zone" onclick="document.getElementById('file-input').click()">
+        <span id="file-name" style="color: #4a5568;">📂 點擊這裡選擇或拖入圖片</span>
+        <input type="file" id="file-input" accept="image/*" onchange="handleFileSelect(event)">
+    </div>
+    
+    <button id="gen-btn" class="btn" onclick="generateImages()" disabled>請先選擇圖片</button>
     <div id="status"></div>
 </div>
 
 <canvas id="calcCanvas"></canvas>
 
 <script>
-    function generateImages() {
+    let loadedImage = null;
+
+    // 處理使用者手動選取的圖片檔案
+    function handleFileSelect(event) {
+        const file = event.target.files[0];
+        if (!file) return;
+
+        document.getElementById('file-name').innerText = `📄 已選取：${file.name}`;
+        
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            loadedImage = new Image();
+            loadedImage.src = e.target.result;
+            loadedImage.onload = function() {
+                // 圖片成功讀入後，啟用生成按鈕
+                document.getElementById('gen-btn').disabled = false;
+                document.getElementById('gen-btn').innerText = "一鍵生成並連續下載 30 張照片";
+                document.getElementById('status').innerText = "圖片就緒，可以開始生成。";
+            }
+        }
+        reader.readAsDataURL(file);
+    }
+
+    async function generateImages() {
+        if (!loadedImage) return;
+
         const btn = document.getElementById('gen-btn');
         const status = document.getElementById('status');
         
         btn.disabled = true;
-        status.innerText = "正在讀取原始影像 marker.jpg...";
+        
+        const canvas = document.getElementById('calcCanvas');
+        const ctx = canvas.getContext('2d');
+        
+        const w = loadedImage.width;
+        const height = loadedImage.height;
+        canvas.width = w;
+        canvas.height = height;
 
-        const img = new Image();
-        img.src = 'marker.jpg';
-
-        img.onload = async function() {
-            const canvas = document.getElementById('calcCanvas');
-            const ctx = canvas.getContext('2d');
+        for (let i = 1; i <= 30; i++) {
+            status.innerText = `正在生成並下載第 ${i} / 30 張...\n(若下載卡住，請確認瀏覽器已允許此網站下載多個檔案)`;
             
-            const w = img.width;
-            const height = img.height;
-            canvas.width = w;
-            canvas.height = height;
+            // 填滿隨機淺色背景
+            ctx.clearRect(0, 0, w, height);
+            const rBg = Math.floor(Math.random() * 55) + 200;
+            const gBg = Math.floor(Math.random() * 55) + 200;
+            const bBg = Math.floor(Math.random() * 55) + 200;
+            ctx.fillStyle = `rgb(${rBg}, ${gBg}, ${bBg})`;
+            ctx.fillRect(0, 0, w, height);
 
-            for (let i = 1; i <= 30; i++) {
-                status.innerText = `正在生成並下載第 ${i} / 30 張...\n(若下載卡住，請檢查瀏覽器右上角是否攔截了多檔案下載)`;
+            ctx.save();
+            ctx.translate(w / 2, height / 2);
+
+            // 1. 隨機旋轉 (-180度 到 +180度)
+            const angle = (Math.random() * 360 - 180) * Math.PI / 180;
+            ctx.rotate(angle);
+
+            // 2. 隨機縮放 (0.75 到 1.25 倍)
+            const scale = Math.random() * 0.5 + 0.75;
+            ctx.scale(scale, scale);
+
+            ctx.drawImage(loadedImage, -w / 2, -height / 2, w, height);
+            ctx.restore();
+
+            // 3. 隨機像素光影調整 (模擬強烈反光與陰影)
+            try {
+                const windowImage = ctx.getImageData(0, 0, w, height);
+                const data = windowImage.data;
+                const brightnessDelta = Math.floor(Math.random() * 60) - 30;
                 
-                // 填滿隨機淺色背景
-                ctx.clearRect(0, 0, w, height);
-                const rBg = Math.floor(Math.random() * 55) + 200;
-                const gBg = Math.floor(Math.random() * 55) + 200;
-                const bBg = Math.floor(Math.random() * 55) + 200;
-                ctx.fillStyle = `rgb(${rBg}, ${gBg}, ${bBg})`;
-                ctx.fillRect(0, 0, w, height);
-
-                ctx.save();
-                ctx.translate(w / 2, height / 2);
-
-                // 1. 隨機旋轉 (-180度 到 +180度)
-                const angle = (Math.random() * 360 - 180) * Math.PI / 180;
-                ctx.rotate(angle);
-
-                // 2. 隨機縮放 (0.75 到 1.25 倍)
-                const scale = Math.random() * 0.5 + 0.75;
-                ctx.scale(scale, scale);
-
-                ctx.drawImage(img, -w / 2, -height / 2, w, height);
-                ctx.restore();
-
-                // 3. 隨機像素光影與色彩微調
-                try {
-                    const windowImage = ctx.getImageData(0, 0, w, height);
-                    const data = windowImage.data;
-                    const brightnessDelta = Math.floor(Math.random() * 60) - 30;
-                    
-                    for (let j = 0; j < data.length; j += 4) {
-                        if (data[j] < 240 || data[j+1] < 240 || data[j+2] < 240) {
-                            data[j]     = Math.min(255, Math.max(0, data[j] + brightnessDelta));
-                            data[j + 1] = Math.min(255, Math.max(0, data[j + 1] + brightnessDelta));
-                            data[j + 2] = Math.min(255, Math.max(0, data[j + 2] + brightnessDelta));
-                        }
+                for (let j = 0; j < data.length; j += 4) {
+                    if (data[j] < 240 || data[j+1] < 240 || data[j+2] < 240) {
+                        data[j]     = Math.min(255, Math.max(0, data[j] + brightnessDelta));
+                        data[j + 1] = Math.min(255, Math.max(0, data[j + 1] + brightnessDelta));
+                        data[j + 2] = Math.min(255, Math.max(0, data[j + 2] + brightnessDelta));
                     }
-                    ctx.putImageData(windowImage, 0, 0);
-                } catch (ce) {
-                    // 如果在本機端測試觸發了 CORS 畫布污染限制，則跳過像素調整，確保絕對能導出圖片
-                    console.log("本機安全性環境限制，啟用安全影像導出模式");
                 }
-
-                // 4. 純原生自動觸發下載機制
-                const imgDataUrl = canvas.toDataURL('image/jpeg', 0.9);
-                const link = document.createElement('a');
-                link.href = imgDataUrl;
-                link.download = `marker_aug_${String(i).padStart(2, '0')}.jpg`;
-                document.body.appendChild(link);
-                link.click();
-                document.body.removeChild(link);
-
-                // 每張稍微延遲一下，防止瀏覽器瞬間下載太多檔案而崩潰
-                await new Promise(resolve => setTimeout(resolve, 200));
+                ctx.putImageData(windowImage, 0, 0);
+            } catch (e) {
+                console.log("色彩調整受限，跳過像素微調");
             }
 
-            status.style.color = "#38a169";
-            status.innerText = "🎉 30 張多維度變異照片已全部下載完成！\n請至您電腦的「下載」資料夾內查看。";
-            btn.disabled = false;
-        };
+            // 4. 自動觸發下載
+            const imgDataUrl = canvas.toDataURL('image/jpeg', 0.9);
+            const link = document.createElement('a');
+            link.href = imgDataUrl;
+            link.download = `marker_aug_${String(i).padStart(2, '0')}.jpg`;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
 
-        img.onerror = function() {
-            alert("錯誤：無法讀取 marker.jpg！\n請確認圖片與網頁在同個資料夾，且檔名完全正確。");
-            status.style.color = "#e53e3e";
-            status.innerText = "圖片載入失敗。";
-            btn.disabled = false;
-        };
+            // 稍微延遲，避免瀏覽器反應不及
+            await new Promise(resolve => setTimeout(resolve, 200));
+        }
+
+        status.style.color = "#38a169";
+        status.innerText = "🎉 30 張多維度變異照片已全部下載完成！\n請至您電腦或手機的「下載」資料夾內查看。";
+        btn.disabled = false;
     }
 </script>
 
